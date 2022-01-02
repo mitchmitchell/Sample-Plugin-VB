@@ -24,9 +24,9 @@ Class SpeakerClient
         _clientName = name
     End Sub
 
-    Public Function Connect(ByVal username As String, ByVal password As String) As Boolean
+    Public Function Connect(ByVal username As String, ByVal password As String, Optional ByVal ipAddress As String = "127.0.0.1") As Boolean
         SyncLock objlock
-            Dim ipAddress As String = "127.0.0.1"
+            'Dim ipAddress As String = "127.0.0.1"
             Logger.LogInfo("Connecting speaker client {0} to HomeSeer IP {1}", _clientName, ipAddress)
 
             Try

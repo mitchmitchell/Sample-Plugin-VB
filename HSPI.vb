@@ -212,7 +212,7 @@ Public Class HSPI
         ' This functions connects your speaker client to the system. Your client will then appear as a speaker client in the system
         ' And can be selected as a target for speech And audio in event actions.
         ' When the system speaks to your client, your SpeakText function Is called in SpeakerClient class
-        _speakerClient.Connect("default", "default")
+        _speakerClient.Connect("default", "default", HomeSeerSystem.GetIpAddress)
 
         Console.WriteLine("Initialized")
         Status = PluginStatus.Ok()
