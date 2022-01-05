@@ -26,7 +26,7 @@ Class SpeakerClient
 
     Public Function Connect(ByVal username As String, ByVal password As String, Optional ByVal ipAddress As String = "127.0.0.1") As Boolean
         SyncLock objlock
-            'Dim ipAddress As String = "127.0.0.1"
+
             Logger.LogInfo("Connecting speaker client {0} to HomeSeer IP {1}", _clientName, ipAddress)
 
             Try
@@ -55,7 +55,7 @@ Class SpeakerClient
                     Return False
                 End If
 
-                Dim rval As String = _speakHost.Connect("Sample Plugin", _clientName, "127.0.0.1", username, password)
+                Dim rval As String = _speakHost.Connect("Sample Plugin", _clientName, ipAddress, username, password)
 
                 If Not String.IsNullOrEmpty(rval) Then
                     Logger.LogError("Error, Unable to connect speaker client interface: {0}", rval)
@@ -205,45 +205,3 @@ Class SpeakerClient
         Return 0
     End Function
 End Class
-
-Friend Module Logger
-        Sub Log(ByVal line As String, ByVal level As ELogType)
-            Try
-                Program._plugin.WriteLog(level, line)
-            Catch ex As Exception
-                Console.WriteLine(ex.ToString())
-            End Try
-        End Sub
-
-        Sub LogDebug(ByVal line As String)
-            Log(line, ELogType.Debug)
-        End Sub
-
-        Sub LogDebug(ByVal format As String, ParamArray args As Object())
-            LogDebug(String.Format(format, args))
-        End Sub
-
-        Sub LogInfo(ByVal line As String)
-            Log(line, ELogType.Info)
-        End Sub
-
-        Sub LogInfo(ByVal format As String, ParamArray args As Object())
-            LogInfo(String.Format(format, args))
-        End Sub
-
-        Sub LogWarning(ByVal line As String)
-            Log(line, ELogType.Warning)
-        End Sub
-
-        Sub LogWarning(ByVal format As String, ParamArray args As Object())
-            LogWarning(String.Format(format, args))
-        End Sub
-
-        Sub LogError(ByVal line As String)
-            Log(line, ELogType.[Error])
-        End Sub
-
-        Sub LogError(ByVal format As String, ParamArray args As Object())
-            LogError(String.Format(format, args))
-        End Sub
-    End Module

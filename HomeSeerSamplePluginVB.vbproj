@@ -72,13 +72,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="HSCF, Version=1.0.0.2, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\HomeSeer-PluginSDK.1.3.0\lib\net462\HSCF.dll</HintPath>
+      <HintPath>packages\HomeSeer-PluginSDK.1.3.1\lib\net462\HSCF.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\Newtonsoft.Json.12.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="M2Mqtt.Net, Version=4.3.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\M2Mqtt.4.3.0.0\lib\net45\M2Mqtt.Net.dll</HintPath>
     </Reference>
-    <Reference Include="PluginSdk, Version=1.3.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\HomeSeer-PluginSDK.1.3.0\lib\net462\PluginSdk.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="PluginSdk, Version=1.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\HomeSeer-PluginSDK.1.3.1\lib\net462\PluginSdk.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -101,12 +104,14 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MessagingThread.vb" />
     <Compile Include="Constants\Devices.vb" />
     <Compile Include="Constants\Settings.vb" />
     <Compile Include="Features\DeviceAddPostData.vb" />
     <Compile Include="Features\SampleGuidedProcessData.vb" />
     <Compile Include="Features\TriggerOptionItem.vb" />
     <Compile Include="HSPI.vb" />
+    <Compile Include="Logger.vb" />
     <Compile Include="Program.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">

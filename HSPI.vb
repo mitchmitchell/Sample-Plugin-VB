@@ -3,6 +3,7 @@ Imports HomeSeer.Jui.Types
 Imports HomeSeer.Jui.Views
 Imports HomeSeer.PluginSdk
 Imports HomeSeer.PluginSdk.Devices
+Imports HomeSeer.PluginSdk.Devices.Identification
 Imports HomeSeer.PluginSdk.Logging
 Imports Newtonsoft.Json
 
@@ -25,6 +26,8 @@ Public Class HSPI
 
     'speaker client instance
     Private _speakerClient As SpeakerClient
+    Private _commThread As MessagingThread
+    Private _addressRefDict As Dictionary(Of Integer, Integer)
 
 
     ''' <inheritdoc />
@@ -42,7 +45,7 @@ Public Class HSPI
     ''' </remarks>
     Public Overrides ReadOnly Property Id As String
         Get
-            Return "HomeSeerSamplePluginVB"
+            Return "HomeSeerThermostatPluginVB"
         End Get
     End Property
 
@@ -52,14 +55,14 @@ Public Class HSPI
     ''' </remarks>
     Public Overrides ReadOnly Property Name As String
         Get
-            Return "Sample Plugin VB"
+            Return "Thermostat Plugin VB"
         End Get
     End Property
 
     ''' <inheritdoc />
     Protected Overrides ReadOnly Property SettingsFileName As String
         Get
-            Return "HomeSeerSamplePluginVB.ini"
+            Return "HomeSeerThermostatPluginVB.ini"
         End Get
     End Property
 
@@ -163,7 +166,7 @@ Public Class HSPI
         'Add a text area to the page
         settingsPage2.WithTextArea(Constants.Settings.Sp2TextAreaId, Constants.Settings.Sp2TextAreaName, 3)
         'Add a time span to the page
-         settingsPage2.WithTimeSpan(Constants.Settings.Sp2SampleTimeSpanId, Constants.Settings.Sp2SampleTimeSpanName)
+        settingsPage2.WithTimeSpan(Constants.Settings.Sp2SampleTimeSpanId, Constants.Settings.Sp2SampleTimeSpanName)
         'Add the second page to the list of plugin settings pages
         Settings.Add(settingsPage2.Page)
 
@@ -192,7 +195,7 @@ Public Class HSPI
         'Load the state of Settings saved to INI if there are any.
         LoadSettingsFromIni()
         If LogDebug Then
-            Console.WriteLine("Registering feature pages")
+            Logger.LogDebug("Registering feature pages")
         End If
         'Initialize feature pages
         HomeSeerSystem.RegisterFeaturePage(Id, "sample-guided-process.html", "Sample Guided Process")
@@ -214,12 +217,26 @@ Public Class HSPI
         ' When the system speaks to your client, your SpeakText function Is called in SpeakerClient class
         _speakerClient.Connect("default", "default", HomeSeerSystem.GetIpAddress)
 
+        _commThread = New MessagingThread()
+        _commThread.Start(HomeSeerSystem.GetIpAddress)
+        UpdateDeviceReferenceCache()
+        Add_HSThermostatDevice("Bedroom", 1)
+        Add_HSThermostatDevice("Family Room", 2)
+        Add_HSThermostatDevice("Kitchen", 3)
+        Add_HSThermostatDevice("Parlor", 4)
+        Add_HSThermostatDevice("Foyer", 5)
+        Add_HSThermostatDevice("Studio", 6)
+        Add_HSThermostatDevice("Turtle Room", 7)
+        Add_HSThermostatDevice("File Room", 8)
+        Add_HSThermostatDevice("Guest Room", 9)
+        Add_HSThermostatDevice("Loft", 10)
+
         Console.WriteLine("Initialized")
         Status = PluginStatus.Ok()
     End Sub
 
     Protected Overrides Sub OnShutdown()
-        Console.WriteLine("Shutting down")
+        Logger.LogDebug("Shutting down")
         _speakerClient.Disconnect()
     End Sub
 
@@ -627,5 +644,505 @@ Public Class HSPI
     End Function
 
 
+#Region "Thermostat Routines"
+    Public Overrides Sub SetIOMulti(colSend As List(Of Controls.ControlEvent))
+        Dim CC As Controls.ControlEvent
+        Dim ParentRef As String
+        Dim fv As HsFeature
+        Dim dv As HsDevice
 
+        For Each CC In colSend
+            'we need the root device ref of the group, so find out if we already have it.
+            fv = HomeSeerSystem.GetFeatureByRef(CC.TargetRef)
+            If fv.Relationship = ERelationship.Feature Then
+                'it's a feature device so the root of the group is the first associated device
+                ParentRef = fv.AssociatedDevices(0)
+            Else
+                'it's the root so use that ref
+                ParentRef = fv.Ref
+            End If
+            dv = HomeSeerSystem.GetDeviceByRef(ParentRef)
+            HomeSeerSystem.UpdateFeatureValueByRef(CC.TargetRef, CC.ControlValue)
+            UpdatePhysicalDevice(dv.Address, fv.TypeInfo.SubType, CC.ControlValue)
+            'See if we need to fire any of our triggers on the events page
+            'CheckTriggers(ParentRef)
+        Next
+    End Sub
+
+    Sub Add_HSThermostatDevice(ByVal DeviceName As String, ByVal Address As Integer)
+        Dim dd As HomeSeer.PluginSdk.Devices.NewDeviceData
+        Dim df As HomeSeer.PluginSdk.Devices.DeviceFactory
+        Dim tr As ValueRange
+
+        If _addressRefDict.ContainsKey(Address) Then
+            Logger.LogError("Device with Address {0} already exists DeviceRef {1}", Address, _addressRefDict.Item(Address))
+            Return
+        End If
+
+        'Use the device factory to create an area to hold the device data that is used to create the device
+        df = HomeSeer.PluginSdk.Devices.DeviceFactory.CreateDevice(Id)
+        'set the name of the device.
+        df.WithName(DeviceName)
+        'set the type of the device.
+        df.AsType(EDeviceType.Thermostat, 0)
+        df.WithAddress(Address)
+
+        'this is the what you use to create feature(child) devices for your device group
+        Dim ff As HomeSeer.PluginSdk.Devices.FeatureFactory
+
+        ' status features
+
+        'create a new feature data holder.
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Temperature")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
+        ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.Temperature)
+        ' need to add a value range and suffix here
+        tr = New ValueRange(0.0, 120.0)
+        tr.Suffix = "°"
+        Dim sg = New StatusGraphic("images/evcstat/thermostat-sub.png", tr)
+        'we're gonna toggle the value to update the datechanged on the device
+        'need to add to feature here
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        'create a new feature data holder.
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Calling")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
+        ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.OperatingState)
+
+        'we're gonna toggle the value to update the datechanged on the device
+
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        'create a new feature data holder.
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Outdoor Temperature")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
+        ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.TemperatureOther)
+
+        'we're gonna toggle the value to update the datechanged on the device
+
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+
+        'control features 
+
+        'create a new feature data holder.
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Cool Set Point")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.AsType(EFeatureType.ThermostatControl, EThermostatControlFeatureSubType.CoolingSetPoint)
+
+        'we're gonna toggle the value to update the datechanged on the device
+        '        ff.AddGraphicForValue("images/evcstat/thermostat-sub.png", 0, "Set Point")
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+        tr = New ValueRange(40.0, 99.0)
+
+        ff.AddSlider(tr, Nothing, Controls.EControlUse.CoolSetPoint)
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        'create a new feature data holder.
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Heat Set Point")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.AsType(EFeatureType.ThermostatControl, EThermostatControlFeatureSubType.HeatingSetPoint)
+
+        'we're gonna toggle the value to update the datechanged on the device
+        '       ff.AddGraphicForValue("images/evcstat/thermostat-sub.png", 0, "Set Point")
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+        ff.AddSlider(tr, Nothing, Controls.EControlUse.HeatSetPoint)
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Fan Mode")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.AsType(EFeatureType.ThermostatControl, EThermostatControlFeatureSubType.FanModeSet)
+
+        'we're gonna toggle the value to update the datechanged on the device
+        '      ff.AddGraphicForValue("images/evcstat/thermostat-sub.png", 0, "Fan Mode")
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+        ff.AddButton(Controls.EControlUse.ThermFanAuto, "Auto", Nothing, Controls.EControlUse.ThermFanAuto)
+        ff.AddButton(Controls.EControlUse.ThermFanOn, "On", Nothing, Controls.EControlUse.ThermFanOn)
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Hold Mode")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.AsType(EFeatureType.ThermostatControl, EThermostatControlFeatureSubType.HoldMode)
+
+        'we're gonna toggle the value to update the datechanged on the device
+        '        ff.AddGraphicForValue("images/evcstat/thermostat-sub.png", 0, "Hold Status")
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+        ff.AddButton(Controls.EControlUse.Off, "Off", Nothing, Controls.EControlUse.Off)
+        ff.AddButton(Controls.EControlUse.On, "On", Nothing, Controls.EControlUse.On)
+        ff.AddButton(Controls.EControlUse.OnAlternate, "Tmp", Nothing, Controls.EControlUse.OnAlternate)
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        ff = HomeSeer.PluginSdk.Devices.FeatureFactory.CreateFeature(Id)
+
+        'add the properties for your feature.
+        ff.WithName("Operating Mode")
+        ff.WithDisplayType(EFeatureDisplayType.Normal)
+        ff.AsType(EFeatureType.ThermostatControl, EThermostatControlFeatureSubType.ModeSet)
+
+        'we're gonna toggle the value to update the datechanged on the device
+        '       ff.AddGraphicForValue("images/evcstat/thermostat-sub.png", 0, "Mode")
+        'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
+
+        ff.AddButton(Controls.EControlUse.ThermModeAuto, "Auto", Nothing, Controls.EControlUse.ThermModeAuto)
+        ff.AddButton(Controls.EControlUse.ThermModeCool, "Cool", Nothing, Controls.EControlUse.ThermModeCool)
+        ff.AddButton(Controls.EControlUse.ThermModeHeat, "Heat", Nothing, Controls.EControlUse.ThermModeHeat)
+        ff.AddButton(Controls.EControlUse.ThermModeOff, "Off", Nothing, Controls.EControlUse.ThermModeOff)
+
+
+        'Add the feature data to the device data in the device factory
+        df.WithFeature(ff)
+
+        'Put device specific data with the device. (this is the cameradata class)
+        Dim PED As New HomeSeer.PluginSdk.Devices.PlugExtraData
+        PED.AddNamed("schedule", Newtonsoft.Json.Linq.JObject.Parse("{""period"":[{""time"":570,""heat"":74,""cool"":78,""fan"":4},{""time"":2047,""heat"":62,""cool"":85,""fan"":4},{""time"":2047,""heat"":70,""cool"":78,""fan"":4},{""time"":1380,""heat"":74,""cool"":78,""fan"":4}]}").ToString())
+        df.WithExtraData(PED)
+
+        'this bundles all the needed data from the device to send to HomeSeer.
+        dd = df.PrepareForHs
+
+        'this creates the device in HomeSeer using the bundled data.
+        HomeSeerSystem.CreateDevice(dd)
+        'update the address to device ref cache
+        UpdateDeviceReferenceCache()
+        'check to see if we need to add additional pages now.
+        '        LoadAdditionalPages()
+    End Sub
+#End Region
+
+#Region "Public Subs/Functions"
+    Public Sub Poll(Optional Address As Integer = 255)
+        Logger.LogDebug("In Poll: Time: {0}", Now())
+        Try
+            If Address <> 255 Then
+                _commThread.SendCommand("A=" & Address.ToString & " O=00 R=1 R=2 SC=?" & vbCr)
+            Else
+                For Each i In _addressRefDict
+                    _commThread.SendCommand("A=" & i.Key.ToString & " O=00 R=1 R=2 SC=?" & vbCr)
+                Next
+            End If
+        Catch ex As Exception
+            Logger.LogError("Error in Poll: {0}", ex.Message)
+        End Try
+
+    End Sub
+
+    Public Sub ProcessDataReceived(ByVal Address As Integer, ByVal Data As String)
+        Dim dv As HsDevice
+        Try
+            If _addressRefDict.ContainsKey(Address) Then
+                dv = HomeSeerSystem.GetDeviceWithFeaturesByRef(_addressRefDict.Item(Address))
+                ProcessDataReceived(dv, Data)
+            ElseIf Address = "255" Then
+                For Each i In _addressRefDict
+                    dv = HomeSeerSystem.GetDeviceWithFeaturesByRef(i.Value)
+                    ProcessDataReceived(dv, Data)
+                Next
+            End If
+        Catch ex As Exception
+            Logger.LogError("Error in ProcessDataReceived obtaining device from address {0} {1}", Address, ex.Message)
+        End Try
+
+    End Sub
+
+    Public Sub ProcessDataReceived(ByVal dv As HsDevice, ByVal Data As String)
+        Dim Prop As String
+        Dim Value As String
+        Dim df As HsFeature
+        Dim ti As New TypeInfo
+        ' OK, We can get multiple items here.  So, split them all then parse each one.
+        Dim commands() As String = Split(Trim(Data))
+        Try
+            For Each item As String In commands
+                ' Get The Property 
+                Prop = Mid(item, 1, InStr(item, "=") - 1)
+                Value = Mid(item, InStr(item, "=") + 1)
+
+                Logger.LogDebug("In ProcessDataReceived, Property= {0}, Value= {1}", Prop, Value)
+
+                Try
+                    Select Case Prop
+                        Case "A"
+                            'Do nothing as we already have the address
+                        Case "Z"
+                            'Not using zones
+                        Case "O"
+                            'Not using owner
+                        Case "M"
+                            ti.Type = EFeatureType.ThermostatControl
+                            ti.SubType = EThermostatControlFeatureSubType.ModeSet
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            Select Case Value
+                                Case "O"
+                                    df.Value = Controls.EControlUse.ThermModeOff
+                                Case "A"
+                                    df.Value = Controls.EControlUse.ThermModeAuto
+                                Case "C"
+                                    df.Value = Controls.EControlUse.ThermModeCool
+                                Case "H"
+                                    df.Value = Controls.EControlUse.ThermModeHeat
+                                Case "E", "EH"
+                                    'df.Value = Controls.EControlUse.ThermModeAux
+                                Case Else
+                                    Logger.LogWarning("In ProcessDataReceived, Invalid Mode Value, Property= {0}, Value= {1}", Prop, Value)
+                            End Select
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "F", "FM"
+                            ti.Type = EFeatureType.ThermostatControl
+                            ti.SubType = EThermostatControlFeatureSubType.FanModeSet
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            Select Case Value
+                                Case "A"
+                                    df.Value = Controls.EControlUse.ThermFanAuto
+                                Case "O"
+                                    df.Value = Controls.EControlUse.ThermFanOn
+                                Case Else
+                                    Logger.LogWarning("In ProcessDataReceived, Invalid Fan Value, Property= {0}, Value= {1}", Prop, Value)
+                            End Select
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "DS"
+                            Select Case Value
+                                Case "O"
+                                    'df.Value = True
+                                Case "C"
+                                    'df.Value = False
+                                Case Else
+                                    Logger.LogWarning("In ProcessDataReceived, Invalid Damper Value, Property= {0}, Value= {1}", Prop, Value)
+                            End Select
+                            'HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                        Case "CS"
+                            ti.Type = EFeatureType.ThermostatStatus
+                            ti.SubType = EThermostatStatusFeatureSubType.OperatingState
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            Select Case Value
+                                Case "C"
+                                    df.Value = True
+                                Case "I"
+                                    df.Value = False
+                                Case Else
+                                    Logger.LogWarning("In ProcessDataReceived, Invalid Calling Value, Property= {0}, Value= {1}", Prop, Value)
+                            End Select
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "FR"
+                            'Remaining Filter Time
+                        Case "FT"
+                            'Total Filter Time
+                        Case "SPH"
+                            'HeatSet
+                            ti.Type = EFeatureType.ThermostatControl
+                            ti.SubType = EThermostatControlFeatureSubType.HeatingSetPoint
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            df.Value = Value
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "SPC"
+                            'Coolset
+                            ti.Type = EFeatureType.ThermostatControl
+                            ti.SubType = EThermostatControlFeatureSubType.CoolingSetPoint
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            df.Value = Value
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "T"
+                            'Temperature
+                            ti.Type = EFeatureType.ThermostatStatus
+                            ti.SubType = EThermostatStatusFeatureSubType.Temperature
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            df.Value = Value
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "TM"
+                            'message displayed on thermostat = Value
+                        Case "OA"
+                            'Other Temperature / Outside Temperature
+                            ti.Type = EFeatureType.ThermostatStatus
+                            ti.SubType = EThermostatStatusFeatureSubType.TemperatureOther
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            df.Value = Value
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "SC"
+                            ti.Type = EFeatureType.ThermostatControl
+                            ti.SubType = EThermostatControlFeatureSubType.HoldMode
+                            ti.ApiType = EApiType.Feature
+                            df = dv.GetFeatureByType(ti)
+                            Select Case Value
+                                Case "0"
+                                    df.Value = Controls.EControlUse.Off
+                                Case "1"
+                                    df.Value = Controls.EControlUse.On
+                                Case "2"
+                                    df.Value = Controls.EControlUse.OnAlternate
+                                Case Else
+                                    Logger.LogWarning("In ProcessDataReceived, Invalid Hold Value,  Property= {0}, Value= {1}", Prop, Value)
+                            End Select
+                            Try
+                                HomeSeerSystem.UpdateFeatureByRef(df.Ref, df.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
+                            End Try
+                        Case "SCH"
+                            dv.PlugExtraData.Item("schedule") = Newtonsoft.Json.Linq.JObject.Parse(Value)
+                            Try
+                                HomeSeerSystem.UpdateDeviceByRef(dv.Ref, dv.Changes)
+                            Catch ex As Exception
+                                Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, dv.Name, dv.Ref)
+                            End Try
+                        Case Else
+                            'CheckTriggers(addr, zone, Prop, Value)
+                    End Select
+                Catch ex As Exception
+                    Logger.LogWarning("Error in ProcessDataReceived Select Block, Selecting Properties, {0}", ex.Message)
+                End Try
+            Next
+        Catch ex As Exception
+            Logger.LogWarning("Error in ProcessDataReceived, Selecting Properties, {0}", ex.Message)
+        End Try
+
+    End Sub
+
+    Public Sub UpdatePhysicalDevice(ByVal Address As Integer, ByVal ControlTypeSetting As EThermostatControlFeatureSubType, ByVal Value As Integer)
+        'This is custom based on the manufacturer
+        Dim Command As String = ""
+        Try
+            Select Case ControlTypeSetting
+                Case EThermostatControlFeatureSubType.HeatingSetPoint
+                    Command = "SPH=" & CStr(Value)
+                Case EThermostatControlFeatureSubType.CoolingSetPoint
+                    Command = "SPC=" & CStr(Value)
+                Case EThermostatControlFeatureSubType.FanModeSet
+                    Select Case Value
+                        Case Controls.EControlUse.ThermFanAuto
+                            Command = "F=A"
+                        Case Controls.EControlUse.ThermFanOn
+                            Command = "F=O"
+                    End Select
+                Case EThermostatControlFeatureSubType.HoldMode
+                    Select Case Value
+                        Case Controls.EControlUse.Off
+                            Command = "SC=0"
+                        Case Controls.EControlUse.On
+                            Command = "SC=1"
+                        Case Controls.EControlUse.OnAlternate
+                            Command = "SC=2"
+                    End Select
+                Case EThermostatControlFeatureSubType.ModeSet
+                    Select Case Value
+                        Case Controls.EControlUse.ThermModeAuto
+                            Command = "M=3"
+                        Case Controls.EControlUse.ThermModeCool
+                            Command = "M=2"
+                        Case Controls.EControlUse.ThermModeHeat
+                            Command = "M=1"
+                        Case Controls.EControlUse.ThermModeOff
+                            Command = "M=0"
+                    End Select
+            End Select
+            If Command.Length > 0 Then
+                _commThread.SendCommand("A=" & Address.ToString & " " & "O=00 " & Command & vbCr)
+            End If
+
+        Catch ex As Exception
+            Logger.LogError("Error in UpdatePhysicalDevice, Address {0} Value {1} - {2}", Address, Value, ex.Message.Length)
+        End Try
+    End Sub
+
+    Private Sub UpdateDeviceReferenceCache()
+        Dim RefDict As Dictionary(Of Integer, Object)
+        RefDict = HomeSeerSystem.GetPropertyByInterface(Id, EProperty.Address, True)
+
+        If _addressRefDict Is Nothing Then
+            _addressRefDict = New Dictionary(Of Integer, Integer)
+        Else
+            _addressRefDict.Clear()
+        End If
+
+        For Each i In RefDict
+            _addressRefDict.Add(i.Value, i.Key)
+        Next
+
+    End Sub
+#End Region
 End Class
