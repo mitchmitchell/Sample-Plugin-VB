@@ -10,7 +10,9 @@ Module Logger
     End Sub
 
     Sub LogDebug(ByVal line As String)
-        Log(line, ELogType.Debug)
+        If Program._plugin.EnableDebugLog() Then
+            Log(line, ELogType.Debug)
+        End If
     End Sub
 
     Sub LogDebug(ByVal format As String, ParamArray args As Object())

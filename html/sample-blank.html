@@ -8,20 +8,113 @@
     <meta name="author" content="HomeSeer Technologies">
     <!--This liquid tag loads all of the necessary css files for HomeSeer-->
     {{includefile '/bootstrap/css/page_common.css'}}
+    <link href="/inline-week-day-picker/dist/jquery-weekdays.min.css" rel="stylesheet" />
     <title>Sample Blank Feature Page</title>
 </head>
 <body class="body homeseer-skin">
-<!--These liquid tags add the HomeSeer header and navbar to the top of the page when appropriate-->
-{{includefile 'header.html'}}
-{{includefile 'navbar.html'}}
-<!--Primary container for the page content
-    The .container class ensures the page content is fit and centered to the screen-->
-<div class="container">
-    <!--This is an intentionally blank page that you can use as a blueprint to create feature pages from-->
-</div>
-<!-- Bootstrap core JavaScript
-================================================== -->
-<!-- Placed at the end of the document so the pages load faster -->
-{{includefile 'bootstrap/js/page_common.js'}}
+    <!--These liquid tags add the HomeSeer header and navbar to the top of the page when appropriate-->
+    {{includefile 'header.html'}}
+    {{includefile 'navbar.html'}}
+    <!--Primary container for the page content
+        The .container class ensures the page content is fit and centered to the screen-->
+    <div class="container">
+        <!--This is an intentionally blank page that you can use as a blueprint to create feature pages from-->
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>Holy guacamole!</strong> You should check in on some of those fields below.
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <table class="main" align="center">
+            <tr>
+                <td class="wrapper">
+                    <table border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td>
+                                <div id="weekdays"> </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        <div class="col-6 col-md">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col">Period</th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Heat</th>
+                        <th scope="col">Cool</th>
+                        <th scope="col">Fan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">Wake</th>
+                        <td><input type="time" value="06:00"></td>
+                        <td><input type="number" value="72" min="40" max="100" step="1" /></td>
+                        <td><input type="number" value="78" min="40" max="100" step="1" /></td>
+                        <td>
+                            <select id="sel1" class="jqDropList" style="padding-top: 4px; padding-right: 6px; padding-bottom: 4px; padding-left: 6px">
+                                <option selected>Auto</option>
+                                <option>On</option>
+                                <option>Off</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Leave</th>
+                        <td><input type="time" value="10:00"></td>
+                        <td><input type="number" value="68" min="40" max="100" step="1" /></td>
+                        <td><input type="number" value="72" min="40" max="100" step="1" /></td>
+                        <td>
+                            <select id="sel1" class="jqDropList" style="padding-top: 4px; padding-right: 6px; padding-bottom: 4px; padding-left: 6px">
+                                <option selected>Auto</option>
+                                <option>On</option>
+                                <option>Off</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Return</th>
+                        <td><input type="time" value="17:00"></td>
+                        <td><input type="number" value="72" min="40" max="100" step="1" /></td>
+                        <td><input type="number" value="78" min="40" max="100" step="1" /></td>
+                        <td>
+                            <select id="sel1" class="jqDropList" style="padding-top: 4px; padding-right: 6px; padding-bottom: 4px; padding-left: 6px">
+                                <option selected>Auto</option>
+                                <option>On</option>
+                                <option>Off</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Sleep</th>
+                        <td><input type="time" value="23:00"></td>
+                        <td><input type="number" value="70" min="40" max="100" step="1" /></td>
+                        <td><input type="number" value="74" min="40" max="100" step="1" /></td>
+                        <td>
+                            <select id="sel1" class="jqDropList" style="padding-top: 4px; padding-right: 6px; padding-bottom: 4px; padding-left: 6px">
+                                <option selected>Auto</option>
+                                <option>On</option>
+                                <option>Off</option>
+                            </select>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    {{includefile 'bootstrap/js/page_common.js'}}
+    <script type="text/javascript" src="/inline-week-day-picker/dist/jquery-weekdays.min.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            $('#weekdays').weekdays();
+        });
+    </script>
 </body>
 </html>

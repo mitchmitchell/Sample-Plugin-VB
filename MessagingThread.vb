@@ -1,19 +1,6 @@
-﻿'Imports System.IO
-'Imports System.Net
-'Imports System.Text
-Imports System.Threading
+﻿Imports System.Threading
 Imports uPLibrary.Networking.M2Mqtt
 Imports uPLibrary.Networking.M2Mqtt.Messages
-'Imports HomeSeer.PluginSdk
-'Imports HomeSeer.PluginSdk.Logging
-'Imports HomeSeer.PluginSdk.Speech
-'Imports HSCF.Communication.Scs.Communication.EndPoints.Tcp
-'Imports HSCF.Communication.ScsServices.Client
-'Imports System
-'Imports System.Collections.Generic
-'Imports System.Linq
-'Imports System.Threading.Tasks
-'Imports HomeSeer.PluginSdk.Constants
 
 
 Public Class MessagingThread
@@ -28,13 +15,11 @@ Public Class MessagingThread
     Private _MqttClient As MqttClient
 
     Public Sub New()
-        '        MyBase.New()
         AddHandler _DevicPollTimer.Elapsed, AddressOf DevicePollTimerTick
     End Sub
 
     Public Sub client_MqttMessageReceived(sender As Object, e As MqttMsgPublishEventArgs)
         Dim st As String = System.Text.Encoding.Default.GetString(e.Message)
-        Logger.LogDebug("message received: {0}", st)
         ProcessResponse(st)
     End Sub
 
@@ -50,12 +35,12 @@ Public Class MessagingThread
             _MqttClient.Connect("EVC Thermostat")
             _MqttClient.Subscribe({MQTT_RecvTopic}, {MqttMsgBase.QOS_LEVEL_EXACTLY_ONCE})
 
-            _MessageReaderThread = New Threading.Thread(AddressOf Comm)
+            _MessageReaderThread = New Threading.Thread(AddressOf Communications)
             _MessageReaderThread.Start()
             _RetryAttempts = 0
             Return True
         Catch ex As Exception
-            Logger.LogError("Error in Communications Thread Start: {0}", ex.Message)
+            Logger.LogError("Error in Communications Thread Start: {0} broker {1}", ex.Message, MQTT_HostAddr)
             If _RetryAttempts < 5 Then
                 _RetryAttempts += 1
                 Return Start()
@@ -67,7 +52,9 @@ Public Class MessagingThread
     End Function
 
     Public Sub Halt()
-        _MessageReaderThread.Abort()
+        If _MessageReaderThread IsNot Nothing Then
+            _MessageReaderThread.Abort()
+        End If
     End Sub
 
     Public Sub Restart()
@@ -78,33 +65,28 @@ Public Class MessagingThread
     Public Sub SendCommand(ByVal Command As String)
         Dim tqi As New TransmitQitem
         Try
-            tqi.Buf = System.Text.Encoding.Default.GetBytes(Command)
-            tqi.Count = Command.Length
-            tqi.RetryCount = 0
+            tqi.MessageBuffer = System.Text.Encoding.Default.GetBytes(Command)
+            ' tqi.ByteCount = Command.Length
+            ' tqi.RetryCount = 0
             TransmitMessageQueue.Enqueue(tqi)
         Catch ex As Exception
-            Logger.LogError("Error in SendCMD: {0}", ex.Message)
+            Logger.LogError("Error in SendCommand: {0}", ex.Message)
         End Try
     End Sub
 
-    Private Sub Comm()
-        ' init ports here so all work is done in this thread
-        Dim st As String = ""
+    Private Sub Communications()
         Dim RetCnt As Integer
-        Dim bNewData As Boolean = False
-
 
         Do
             Try
                 Thread.Sleep(100)
 
                 If TransmitMessageQueue.Count > 0 Then
-                    Dim ToWrite As String = ""
                     Do
                         Try
                             Dim tqi As TransmitQitem = TransmitMessageQueue.Dequeue
-                            Logger.LogDebug("Writing Data: {0}", System.Text.Encoding.Default.GetString(tqi.Buf))
-                            _MqttClient.Publish(MQTT_SendTopic, tqi.Buf)
+                            Logger.LogDebug("Writing Data: {0}", System.Text.Encoding.Default.GetString(tqi.MessageBuffer))
+                            _MqttClient.Publish(MQTT_SendTopic, tqi.MessageBuffer)
                             Thread.Sleep(250)
                         Catch ex As Exception
                             Logger.LogError("Error Writing Data: {0}", ex.Message)
@@ -116,7 +98,7 @@ Public Class MessagingThread
 
             Catch ex As Exception
                 Logger.LogError("Error in Poll Thread, {0} Line Number: {1}", ex.Message, Err.Erl)
-                st = ""
+                'st = ""
                 Thread.Sleep(10000)
                 RetCnt += 1
                 If RetCnt = 10 Then
@@ -144,11 +126,11 @@ Public Class MessagingThread
             addr = text.Substring(0, iLength)
             addr = Strings.Right(addr, addr.Length - 2)
             addr = addr.Trim
-            Logger.LogDebug("Processing Dataline - {0}", text)
+            Logger.LogDebug("Processing dataline - {0} {1}", addr, text)
             _plugin.ProcessDataReceived(addr, text)
         Catch ex As Exception
             Logger.LogError("Error in ProcessResponse, {0} Line Number: {1}", ex.Message, Err.Erl)
-            Logger.LogError("Error in ProcessResponse, return dataline: {0}", text)
+            Logger.LogError("Error in ProcessResponse, dataline: {0}", text)
         End Try
     End Sub
 
@@ -179,12 +161,12 @@ Public Class MessagingThread
     End Sub
 
     Private Class TransmitQitem
-        Public Buf() As Byte
-        Public Count As Integer
-        Public RetryCount As Integer
+        Public MessageBuffer() As Byte
+        'Public ByteCount As Integer
+        'Public RetryCount As Integer
 
-        Public Sub New()
-            RetryCount = 0
-        End Sub
+        'Public Sub New()
+        '    RetryCount = 0
+        'End Sub
     End Class
 End Class

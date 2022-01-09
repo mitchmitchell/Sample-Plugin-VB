@@ -55,7 +55,7 @@ Class SpeakerClient
                     Return False
                 End If
 
-                Dim rval As String = _speakHost.Connect("Sample Plugin", _clientName, ipAddress, username, password)
+                Dim rval As String = _speakHost.Connect("Thermostat Plugin", _clientName, ipAddress, username, password)
 
                 If Not String.IsNullOrEmpty(rval) Then
                     Logger.LogError("Error, Unable to connect speaker client interface: {0}", rval)

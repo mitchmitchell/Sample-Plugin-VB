@@ -13,16 +13,14 @@ Imports Newtonsoft.Json
 ''' </summary>
 ''' <remarks>
 ''' This class is accessed by HomeSeer and requires that its name be "HSPI" and be located in a namespace
-'''  that corresponds to the name of the executable. For this plugin, "HomeSeerSamplePluginVB" the executable
-'''  file is "HSPI_HomeSeerSamplePluginVB.exe" and this class is HSPI_HomeSeerSamplePluginVB.HSPI
+'''  that corresponds to the name of the executable. For this plugin, "HomeSeerThermostatPluginVB" the executable
+'''  file is "HSPI_HomeSeerThermostatPluginVB.exe" and this class is HSPI_HomeSeerThermostatPluginVB.HSPI
 ''' <para>
 ''' If HomeSeer is unable to find this class, the plugin will not start.
 ''' </para>
 ''' </remarks>
 Public Class HSPI
     Inherits AbstractPlugin
-    Implements WriteLogSampleActionType.IWriteLogActionListener
-
 
     'speaker client instance
     Private _speakerClient As SpeakerClient
@@ -40,7 +38,7 @@ Public Class HSPI
     ''' </para>
     ''' <para>
     ''' The relative address for all of the HTML pages will end up looking like this:
-    '''  ..\Homeseer\Homeseer\html\HomeSeerSamplePluginVB\
+    '''  ..\Homeseer\Homeseer\html\HomeSeerThermostatPluginVB\
     ''' </para>
     ''' </remarks>
     Public Overrides ReadOnly Property Id As String
@@ -84,125 +82,59 @@ Public Class HSPI
         InitializeSettingsPages()
 
         'Or adding an event action or trigger type definition to the list of types supported by your plugin
-        ActionTypes.AddActionType(GetType(WriteLogSampleActionType))
+        'ActionTypes.AddActionType(GetType(WriteLogSampleActionType))
         TriggerTypes.AddTriggerType(GetType(SampleTriggerType))
     End Sub
 
     ''' <summary>
-    ''' Initialize the starting state of the settings pages for the HomeSeerSamplePlugin.
+    ''' Initialize the starting state of the settings pages for the HomeSeerThermostatPlugin.
     '''  This constructs the framework that the user configurable settings for the plugin live in.
     '''  Any saved configuration options are loaded later in <see cref="Initialize"/> using
     '''  <see cref="AbstractPlugin.LoadSettingsFromIni"/>
     ''' </summary>
     ''' <remarks>
     ''' For ease of use throughout the plugin, all of the view IDs, names, and values (non-volatile data)
-    '''  are stored in the <see cref="HSPI_HomeSeerSamplePluginVB.Constants.Settings"/> static class.
+    '''  are stored in the <see cref="HSPI_HomeSeerThermostatPluginVB.Constants.Settings"/> static class.
     ''' </remarks>
     Private Sub InitializeSettingsPages()
-        'Initialize the first settings page
-        ' This page is used to manipulate the behavior of the sample plugin
+        'Initialize the settings page
 
         'Start a PageFactory to construct the Page
-        Dim settingsPage1 = PageFactory.CreateSettingsPage(Constants.Settings.SettingsPage1Id, Constants.Settings.SettingsPage1Name)
-        'Add a LabelView to the page
-        settingsPage1.WithLabel(Constants.Settings.Sp1ColorLabelId, Nothing, Constants.Settings.Sp1ColorLabelValue)
-        'Create a group of ToggleViews displayed as a flexbox grid 
-        Dim colorViewGroup = New GridView(Constants.Settings.Sp1ColorGroupId, Constants.Settings.Sp1ColorGroupName)
-        Dim colorFirstRow = New GridRow()
-        colorFirstRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleRedId, Constants.Settings.ColorRedName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorFirstRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleOrangeId, Constants.Settings.ColorOrangeName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorFirstRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleYellowId, Constants.Settings.ColorYellowName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorFirstRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleGreenId, Constants.Settings.ColorGreenName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        Dim colorSecondRow = New GridRow()
-        colorSecondRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleBlueId, Constants.Settings.ColorBlueName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorSecondRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleIndigoId, Constants.Settings.ColorIndigoName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorSecondRow.AddItem(New ToggleView(Constants.Settings.Sp1ColorToggleVioletId, Constants.Settings.ColorVioletName, True) With {
-            .ToggleType = EToggleType.Checkbox
-        }, extraSmallSize:=EColSize.Col6, largeSize:=EColSize.Col3)
-        colorViewGroup.AddRow(colorFirstRow)
-        colorViewGroup.AddRow(colorSecondRow)
-        'Add the GridView containing all of the ToggleViews to the page
-        settingsPage1.WithView(colorViewGroup)
+        Dim settingsPage = PageFactory.CreateSettingsPage(Constants.Settings.SettingsPageId, Constants.Settings.SettingsPageName)
+
+        'Add a text InputView to the page
+        settingsPage.WithInput(Constants.Settings.SpHostAddressId, Constants.Settings.SpHostAddressName, Constants.Settings.SpHostAddressDefault, EInputType.Text)
+        'Add a text InputView to the page
+        settingsPage.WithInput(Constants.Settings.SpReceiveTopicId, Constants.Settings.SpReceiveTopicName, Constants.Settings.SpReceiveTopicDefault, EInputType.Text)
+        'Add a text InputView to the page
+        settingsPage.WithInput(Constants.Settings.SpSendTopicId, Constants.Settings.SpSendTopicName, Constants.Settings.SpSendTopicDefault, EInputType.Text)
+        'Add a number InputView to the page
+        settingsPage.WithInput(Constants.Settings.SpPollIntervalId, Constants.Settings.SpPollIntervalName, Constants.Settings.SpPollIntervalDefault, EInputType.Number)
         'Create 2 ToggleViews for controlling the visibility of the other two settings pages
+
         Dim pageToggles = New List(Of ToggleView) From {
-            New ToggleView(Constants.Settings.Sp1PageVisToggle1Id, Constants.Settings.Sp1PageVisToggle1Name, True),
-            New ToggleView(Constants.Settings.Sp1PageVisToggle2Id, Constants.Settings.Sp1PageVisToggle2Name, True)
+            New ToggleView(Constants.Settings.SpDebugEnableToggleId, Constants.Settings.SpDebugEnableToggleName, False)
         }
         'Add a ViewGroup containing all of the ToggleViews to the page
-        settingsPage1.WithGroup(Constants.Settings.Sp1PageToggleGroupId, Constants.Settings.Sp1PageToggleGroupName, pageToggles)
-        'Add the first page to the list of plugin settings pages
-        Settings.Add(settingsPage1.Page)
+        settingsPage.WithGroup(Constants.Settings.SpDebugToggleGroupId, Constants.Settings.SpDebugToggleGroupName, pageToggles)
 
-        'Initialize the second settings page
-        ' This page is used to visually demonstrate all of the available JUI views except for InputViews.
-        ' None of these views interact with the plugin and are merely for show.
+        Settings.Add(settingsPage.Page)
 
-        'Start a PageFactory to construct the Page
-        Dim settingsPage2 = PageFactory.CreateSettingsPage(Constants.Settings.SettingsPage2Id, Constants.Settings.SettingsPage2Name)
-        'Add a LabelView with a title to the page
-        settingsPage2.WithLabel(Constants.Settings.Sp2LabelWTitleId, Constants.Settings.Sp2LabelWTitleName, Constants.Settings.Sp2LabelWTitleValue)
-        'Add a LabelView without a title to the page
-        settingsPage2.WithLabel(Constants.Settings.Sp2LabelWoTitleId, Nothing, Constants.Settings.Sp2LabelWoTitleValue)
-        'Add a toggle switch to the page
-        settingsPage2.WithToggle(Constants.Settings.Sp2SampleToggleId, Constants.Settings.Sp2SampleToggleName)
-        'Add a checkbox to the page
-        settingsPage2.WithCheckBox(Constants.Settings.Sp2SampleCheckBoxId, Constants.Settings.Sp2SampleCheckBoxName)
-        'Add a drop down select list to the page
-        settingsPage2.WithDropDownSelectList(Constants.Settings.Sp2SelectListId, Constants.Settings.Sp2SelectListName, Constants.Settings.Sp2SelectListOptions)
-        'Add a radio select list to the page
-        settingsPage2.WithRadioSelectList(Constants.Settings.Sp2RadioSlId, Constants.Settings.Sp2RadioSlName, Constants.Settings.Sp2SelectListOptions)
-        'Add a text area to the page
-        settingsPage2.WithTextArea(Constants.Settings.Sp2TextAreaId, Constants.Settings.Sp2TextAreaName, 3)
-        'Add a time span to the page
-        settingsPage2.WithTimeSpan(Constants.Settings.Sp2SampleTimeSpanId, Constants.Settings.Sp2SampleTimeSpanName)
-        'Add the second page to the list of plugin settings pages
-        Settings.Add(settingsPage2.Page)
-
-        'Initialize the third settings page
-        ' This page is used to visually demonstrate the different types of JUI InputViews.
-
-        'Start a PageFactory to construct the Page
-        Dim settingsPage3 = PageFactory.CreateSettingsPage(Constants.Settings.SettingsPage3Id, Constants.Settings.SettingsPage3Name)
-        'Add a text InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput1Id, Constants.Settings.Sp3SampleInput1Name)
-        'Add a number InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput2Id, Constants.Settings.Sp3SampleInput2Name, EInputType.Number)
-        'Add an email InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput3Id, Constants.Settings.Sp3SampleInput3Name, EInputType.Email)
-        'Add a URL InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput4Id, Constants.Settings.Sp3SampleInput4Name, EInputType.Url)
-        'Add a password InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput5Id, Constants.Settings.Sp3SampleInput5Name, EInputType.Password)
-        'Add a decimal InputView to the page
-        settingsPage3.WithInput(Constants.Settings.Sp3SampleInput6Id, Constants.Settings.Sp3SampleInput6Name, EInputType.Decimal)
-        'Add the third page to the list of plugin settings pages
-        Settings.Add(settingsPage3.Page)
     End Sub
 
     Protected Overrides Sub Initialize()
         'Load the state of Settings saved to INI if there are any.
         LoadSettingsFromIni()
         If LogDebug Then
-            Logger.LogDebug("Registering feature pages")
+            Console.WriteLine("Registering feature pages")
         End If
         'Initialize feature pages
-        HomeSeerSystem.RegisterFeaturePage(Id, "sample-guided-process.html", "Sample Guided Process")
-        HomeSeerSystem.RegisterFeaturePage(Id, "sample-blank.html", "Sample Blank Page")
-        HomeSeerSystem.RegisterFeaturePage(Id, "sample-trigger-feature.html", "Trigger Feature Page")
-        HomeSeerSystem.RegisterFeaturePage(Id, "sample-functions.html", "Plugin Functions Sample")
-        HomeSeerSystem.RegisterDeviceIncPage(Id, "add-sample-device.html", "Add Sample Device")
+        'HomeSeerSystem.RegisterFeaturePage(Id, "sample-guided-process.html", "Sample Guided Process")
+        'HomeSeerSystem.RegisterFeaturePage(Id, "sample-blank.html", "Sample Blank Page")
+        'HomeSeerSystem.RegisterFeaturePage(Id, "sample-trigger-feature.html", "Trigger Feature Page")
+        'HomeSeerSystem.RegisterFeaturePage(Id, "sample-functions.html", "Plugin Functions Sample")
+        'HomeSeerSystem.RegisterDeviceIncPage(Id, "add-sample-device.html", "Add Sample Device")
+        EnableDebugLog = Settings.Item(Constants.Settings.SettingsPageId).GetViewById(Constants.Settings.SpDebugEnableToggleId).GetStringValue()
 
         ' If a speaker client Is needed that handles sending speech to an audio device, initialize that here.
         ' If you are supporting multiple speak devices such as multiple speakers, you would make this call
@@ -218,8 +150,16 @@ Public Class HSPI
         _speakerClient.Connect("default", "default", HomeSeerSystem.GetIpAddress)
 
         _commThread = New MessagingThread()
-        _commThread.Start(HomeSeerSystem.GetIpAddress)
+
+        _commThread.MQTT_HostAddr = Settings.Item(Constants.Settings.SettingsPageId).GetViewById(Constants.Settings.SpHostAddressId).GetStringValue()
+        _commThread.MQTT_RecvTopic = Settings.Item(Constants.Settings.SettingsPageId).GetViewById(Constants.Settings.SpReceiveTopicId).GetStringValue()
+        _commThread.MQTT_SendTopic = Settings.Item(Constants.Settings.SettingsPageId).GetViewById(Constants.Settings.SpSendTopicId).GetStringValue()
+        _commThread.DevicePollTimerInterval = Settings.Item(Constants.Settings.SettingsPageId).GetViewById(Constants.Settings.SpPollIntervalId).GetStringValue()
+
+        _commThread.Start()
+
         UpdateDeviceReferenceCache()
+
         Add_HSThermostatDevice("Bedroom", 1)
         Add_HSThermostatDevice("Family Room", 2)
         Add_HSThermostatDevice("Kitchen", 3)
@@ -236,42 +176,32 @@ Public Class HSPI
     End Sub
 
     Protected Overrides Sub OnShutdown()
-        Logger.LogDebug("Shutting down")
+        Logger.LogDebug("Thermostat Plugin Shutting down")
         _speakerClient.Disconnect()
     End Sub
 
+
     Protected Overrides Function OnSettingChange(pageId As String, currentView As AbstractView, changedView As AbstractView) As Boolean
 
-        'React to the toggles that control the visibility of the last 2 settings pages
-        If changedView.Id = Constants.Settings.Sp1PageVisToggle1Id Then
-            'Make sure the changed view is a ToggleView
-            Dim tView As ToggleView = TryCast(changedView, ToggleView)
-            If tView Is Nothing Then
-                Return False
-            End If
-
-            'Show/Hide the second page based on the new state of the toggle
-            If tView.IsEnabled Then
-                Settings.ShowPageById(Constants.Settings.SettingsPage2Id)
+        If pageId = Constants.Settings.SettingsPageId Then
+             If changedView.Id = Constants.Settings.SpHostAddressId Then
+                _commThread.MQTT_HostAddr = changedView.GetStringValue()
+                _commThread.Restart()
+            ElseIf changedView.Id = Constants.Settings.SpReceiveTopicId Then
+                _commThread.MQTT_RecvTopic = changedView.GetStringValue()
+                _commThread.Restart()
+            ElseIf changedView.Id = Constants.Settings.SpSendTopicId Then
+                _commThread.MQTT_SendTopic = changedView.GetStringValue()
+                _commThread.Restart()
+            ElseIf changedView.Id = Constants.Settings.SpPollIntervalId Then
+                _commThread.DevicePollTimerInterval = changedView.GetStringValue()
+                _commThread.Restart()
+            ElseIf changedView.Id = Constants.Settings.SpDebugEnableToggleId Then
+                EnableDebugLog = changedView.GetStringValue()
             Else
-                Settings.HidePageById(Constants.Settings.SettingsPage2Id)
-            End If
-        ElseIf changedView.Id = Constants.Settings.Sp1PageVisToggle2Id Then
-            'Make sure the changed view is a ToggleView
-            Dim tView As ToggleView = TryCast(changedView, ToggleView)
-            If tView Is Nothing Then
-                Return False
-            End If
-
-            'Show/Hide the second page based on the new state of the toggle
-            If tView.IsEnabled Then
-                Settings.ShowPageById(Constants.Settings.SettingsPage3Id)
-            Else
-                Settings.HidePageById(Constants.Settings.SettingsPage3Id)
-            End If
-        Else
-            If LogDebug Then
-                Console.WriteLine($"View ID {changedView.Id} does not match any views on the page.")
+                If LogDebug Then
+                    Console.WriteLine($"View ID {changedView.Id} does not match any views on the page.")
+                End If
             End If
         End If
 
@@ -286,6 +216,11 @@ Public Class HSPI
     End Sub
 
     Public Overrides Function GetJuiDeviceConfigPage(ByVal deviceRef As Integer) As String
+        Dim Schedule As Dictionary(Of String, Dictionary(Of String, Period)) = New Dictionary(Of String, Dictionary(Of String, Period))
+        Dim Day As Dictionary(Of String, Period) = New Dictionary(Of String, Period)
+        Dim Per As Period = New Period
+
+        Dim scheduleValue As String = GetExtraData(deviceRef, DeviceConfigScheduleId)
         Dim toggleValue As Boolean = GetExtraData(deviceRef, DeviceConfigSampleToggleId) = True.ToString()
         Dim checkboxValue As Boolean = GetExtraData(deviceRef, DeviceConfigSampleCheckBoxId) = True.ToString()
         Dim dropdownSavedValue As String = GetExtraData(deviceRef, DeviceConfigSelectListId)
@@ -309,8 +244,22 @@ Public Class HSPI
             inputValue = inputSavedValue
         End If
 
-        Dim textAreaSavedValue As String = GetExtraData(deviceRef, DeviceConfigTextAreaId)
+
+        Dim textAreaSavedValue As String = GetExtraData(deviceRef, DeviceConfigScheduleId)
         Dim textAreaValue As String = ""
+
+        Schedule = JsonConvert.DeserializeObject(Of Dictionary(Of String, Dictionary(Of String, Period)))(textAreaSavedValue)
+
+        For Each i In Schedule
+            For Each d In i.Value
+                Dim p As Period = d.Value
+                Console.WriteLine("Day {0} Period {1} Time Of Day {2}", i.Key, d.Key, p.Time.TimeOfDay)
+                Console.WriteLine("Day {0} Period {1} Cool Set Point {2}", i.Key, d.Key, p.Cool)
+                Console.WriteLine("Day {0} Period {1} Heat Set Point {2}", i.Key, d.Key, p.Heat)
+                Console.WriteLine("Day {0} Period {1} Fan Setting {2}", i.Key, d.Key, p.Fan)
+            Next
+        Next
+        UpdatePhysicalDeviceSchedule(HomeSeerSystem.GetDeviceByRef(deviceRef).Address, Schedule)
 
         If Not String.IsNullOrEmpty(textAreaSavedValue) Then
             textAreaValue = textAreaSavedValue
@@ -432,22 +381,6 @@ Public Class HSPI
                     response = $"Error while deserializing data: {exception.Message}"
                 End Try
 
-            Case "sample-guided-process.html"
-
-                'Handle the Guided Process page
-                Try
-                    Dim postData = JsonConvert.DeserializeObject(Of SampleGuidedProcessData)(data)
-                    If LogDebug Then
-                        Console.WriteLine("Post back from sample-guided-process page")
-                    End If
-                    response = postData.GetResponse()
-                Catch exception As JsonSerializationException
-                    If LogDebug Then
-                        Console.WriteLine(exception.Message)
-                    End If
-                    response = "error"
-                End Try
-
             Case "add-sample-device.html"
                 Try
                     Dim postData = JsonConvert.DeserializeObject(Of DeviceAddPostData)(data)
@@ -479,72 +412,9 @@ Public Class HSPI
     End Function
 
     ''' <summary>
-    ''' Called by the sample guided process feature page through a liquid tag to provide the list of available colors
-    ''' <para>
-    ''' {{plugin_function 'HomeSeerSamplePluginVB' 'GetSampleSelectList' []}}
-    ''' </para>
-    ''' </summary>
-    ''' <returns>The HTML for the list of select list options</returns>
-    Public Function GetSampleSelectList() As String
-        If LogDebug Then
-            Console.WriteLine("Getting sample select list for sample-guided-process page")
-        End If
-        Dim sb = New StringBuilder("<select class=""mdb-select md-form"" id=""step3SampleSelectList"">")
-        sb.Append(Environment.NewLine)
-        sb.Append("<option value="""" disabled selected>Color</option>")
-        sb.Append(Environment.NewLine)
-        Dim colorList = New List(Of String)()
-
-
-        Try
-            Dim colorSettings = Settings(Constants.Settings.SettingsPage1Id).GetViewById(Constants.Settings.Sp1ColorGroupId)
-            Dim colorViewGroup As ViewGroup = TryCast(colorSettings, ViewGroup)
-            Dim colorView As ToggleView
-
-            If colorViewGroup Is Nothing Then
-                Throw New ViewTypeMismatchException("No View Group found containing colors")
-            End If
-
-            For Each view In colorViewGroup.Views
-
-                colorView = TryCast(view, ToggleView)
-                If colorView Is Nothing Then
-                    Continue For
-                End If
-
-                colorList.Add(If(colorView.IsEnabled, colorView.Name, ""))
-            Next
-
-        Catch exception As Exception
-            If LogDebug Then
-                Console.WriteLine(exception)
-            End If
-            colorList = Constants.Settings.ColorMap.Values.ToList()
-        End Try
-
-        For i = 0 To colorList.Count - 1
-            Dim color = colorList(i)
-
-            If String.IsNullOrEmpty(color) Then
-                Continue For
-            End If
-
-            sb.Append("<option value=""")
-            sb.Append(i)
-            sb.Append(""">")
-            sb.Append(color)
-            sb.Append("</option>")
-            sb.Append(Environment.NewLine)
-        Next
-
-        sb.Append("</select>")
-        Return sb.ToString()
-    End Function
-
-    ''' <summary>
     ''' Called by the sample trigger feature page to get the HTML for a list of checkboxes to use a trigger options
     ''' <para>
-    ''' {{list=plugin_function 'HomeSeerSamplePluginVB' 'GetTriggerOptionsHtml' [2]}}
+    ''' {{list=plugin_function 'HomeSeerThermostatPluginVB' 'GetTriggerOptionsHtml' [2]}}
     ''' </para>
     ''' </summary>
     ''' <param name="numTriggerOptions">The number of checkboxes to generate</param>
@@ -567,7 +437,7 @@ Public Class HSPI
     ''' <summary>
     ''' Called by the sample trigger feature page to get trigger option items as a list to populate HTML on the page.
     ''' <para>
-    ''' {{list2=plugin_function 'HomeSeerSamplePluginVB' 'GetTriggerOptions' [2]}}
+    ''' {{list2=plugin_function 'HomeSeerThermostatPluginVB' 'GetTriggerOptions' [2]}}
     ''' </para>
     ''' </summary>
     ''' <param name="numTriggerOptions">The number of trigger options to generate.</param>
@@ -585,9 +455,91 @@ Public Class HSPI
     End Function
 
     '<inheritdoc />
-    Public Sub WriteLog(ByVal logType As ELogType, ByVal message As String) Implements WriteLogSampleActionType.IWriteLogActionListener.WriteLog
+    Public Sub WriteLog(ByVal logType As ELogType, ByVal message As String)
         HomeSeerSystem.WriteLog(logType, message, Name)
     End Sub
+
+    Class Period
+
+        Private _time As DateTime
+        Private _heat As Integer
+        Private _cool As Integer
+        Private _fan As Integer
+        <JsonIgnore>
+        Private _hasChanged As Boolean = False
+
+        Property Time As DateTime
+            Get
+                Return _time
+            End Get
+            Set(value As DateTime)
+                _time = value
+                _hasChanged = True
+            End Set
+        End Property
+        Property Heat As Integer
+            Get
+                Return _heat
+            End Get
+            Set(value As Integer)
+                If value > 40 And value < 99 Then
+                    _heat = value
+                    _hasChanged = True
+                Else
+                    Throw New ArgumentException("Value out of range <40-99>")
+                End If
+
+            End Set
+        End Property
+        Property Cool As Integer
+            Get
+                Return _cool
+            End Get
+            Set(value As Integer)
+                If value > 40 And value < 99 Then
+                    _cool = value
+                    _hasChanged = True
+                Else
+                    Throw New ArgumentException("Value out of range <40-99>")
+                End If
+
+            End Set
+        End Property
+        Property Fan As Integer
+            Get
+                Return _fan
+            End Get
+            Set(value As Integer)
+                If value <> Controls.EControlUse.ThermFanAuto And value <> Controls.EControlUse.ThermFanOn Then
+                    _fan = value
+                    _hasChanged = True
+                Else
+                    Throw New ArgumentException("Value Invalid, must be On ThermFanOn or ThermFanOff")
+                End If
+
+            End Set
+        End Property
+
+        ReadOnly Property HasChanged As Boolean
+            Get
+                Return _hasChanged
+            End Get
+        End Property
+
+        Public Sub Clean()
+            _hasChanged = False
+        End Sub
+    End Class
+
+    Public Property EnableDebugLog() As Boolean
+        Get
+            Return LogDebug
+        End Get
+        Set(ByVal value As Boolean)
+            Logger.LogInfo("Debug flag changed to {0}", value)
+            LogDebug = value
+        End Set
+    End Property
 
     Private Function GetExtraData(ByVal deviceRef As Integer, ByVal key As String) As String
         Dim extraData As PlugExtraData = CType(HomeSeerSystem.GetPropertyByRef(deviceRef, EProperty.PlugExtraData), PlugExtraData)
@@ -609,39 +561,6 @@ Public Class HSPI
         extraData(key) = value
         HomeSeerSystem.UpdatePropertyByRef(deviceRef, EProperty.PlugExtraData, extraData)
     End Sub
-
-    ' custom functions that can be accessed from a feature page
-    <Serializable>
-    Public Class CustomClass
-        Public IntItem As Integer
-        Public StringItem As String
-        Public ArrayItem As New List(Of String)
-    End Class
-
-    Public Function MyCustomFunctionArray(param As String) As List(Of CustomClass)
-        Dim list As New List(Of CustomClass)
-        Dim cc As CustomClass
-        Dim ai As List(Of String)
-
-        cc = New CustomClass
-        cc.IntItem = 1
-        cc.StringItem = "string 1"
-        ai = New List(Of String)
-        ai.Add("list item 1")
-        ai.Add("list item 2")
-        cc.ArrayItem = ai
-        list.Add(cc)
-
-        cc = New CustomClass
-        cc.IntItem = 2
-        cc.StringItem = "string 2"
-        ai = New List(Of String)
-        ai.Add("list item 3")
-        ai.Add("list item 4")
-        cc.ArrayItem = ai
-        list.Add(cc)
-        Return list
-    End Function
 
 
 #Region "Thermostat Routines"
@@ -701,9 +620,23 @@ Public Class HSPI
         ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
         ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.Temperature)
         ' need to add a value range and suffix here
-        tr = New ValueRange(0.0, 120.0)
-        tr.Suffix = "°"
-        Dim sg = New StatusGraphic("images/evcstat/thermostat-sub.png", tr)
+        'tr = New ValueRange(0.0, 120.0)
+        'tr.Suffix = "°"
+        'Dim sg = New StatusGraphic("images/evcstat/thermostat-sub.png", tr)
+
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-00.png", -32.0, 0.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-10.png", 0.000001, 10.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-20.png", 10.000001, 20.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-30.png", 20.000001, 30.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-40.png", 30.000001, 40.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-50.png", 40.000001, 50.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-60.png", 50.000001, 60.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-70.png", 60.000001, 70.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-80.png", 70.000001, 80.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-90.png", 80.000001, 90.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-100.png", 90.000001, 100.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-110.png", 100.000001, 120.0)
+
         'we're gonna toggle the value to update the datechanged on the device
         'need to add to feature here
         'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
@@ -721,6 +654,8 @@ Public Class HSPI
         ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
         ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.OperatingState)
 
+        ff.AddGraphicForValue("images/HomeSeer/status/fan-state-off.png", False, "Idle")
+        ff.AddGraphicForValue("images/HomeSeer/status/fan-state-on.png", True, "Running")
         'we're gonna toggle the value to update the datechanged on the device
 
         'We need the value to be unique to the statuses to allow the button to be activated regardless of the status of the device.
@@ -737,6 +672,19 @@ Public Class HSPI
         ff.WithDisplayType(EFeatureDisplayType.Normal)
         ff.WithMiscFlags({EMiscFlag.StatusOnly, EMiscFlag.ShowValues})
         ff.AsType(EFeatureType.ThermostatStatus, EThermostatStatusFeatureSubType.TemperatureOther)
+
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-00.png", -32.0, 0.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-10.png", 0.000001, 10.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-20.png", 10.000001, 20.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-30.png", 20.000001, 30.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-40.png", 30.000001, 40.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-50.png", 40.000001, 50.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-60.png", 50.000001, 60.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-70.png", 60.000001, 70.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-80.png", 70.000001, 80.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-90.png", 80.000001, 90.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-100.png", 90.000001, 100.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-110.png", 100.000001, 120.0)
 
         'we're gonna toggle the value to update the datechanged on the device
 
@@ -764,6 +712,19 @@ Public Class HSPI
 
         ff.AddSlider(tr, Nothing, Controls.EControlUse.CoolSetPoint)
 
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-00.png", -32.0, 0.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-10.png", 0.000001, 10.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-20.png", 10.000001, 20.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-30.png", 20.000001, 30.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-40.png", 30.000001, 40.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-50.png", 40.000001, 50.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-60.png", 50.000001, 60.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-70.png", 60.000001, 70.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-80.png", 70.000001, 80.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-90.png", 80.000001, 90.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-100.png", 90.000001, 100.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-110.png", 100.000001, 120.0)
+
 
         'Add the feature data to the device data in the device factory
         df.WithFeature(ff)
@@ -782,6 +743,18 @@ Public Class HSPI
 
         ff.AddSlider(tr, Nothing, Controls.EControlUse.HeatSetPoint)
 
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-00.png", -32.0, 0.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-10.png", 0.000001, 10.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-20.png", 10.000001, 20.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-30.png", 20.000001, 30.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-40.png", 30.000001, 40.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-50.png", 40.000001, 50.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-60.png", 50.000001, 60.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-70.png", 60.000001, 70.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-80.png", 70.000001, 80.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-90.png", 80.000001, 90.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-100.png", 90.000001, 100.0)
+        ff.AddGraphicForRange("images/HomeSeer/status/Thermometer-110.png", 100.000001, 120.0)
 
         'Add the feature data to the device data in the device factory
         df.WithFeature(ff)
@@ -800,6 +773,8 @@ Public Class HSPI
 
         ff.AddButton(Controls.EControlUse.ThermFanAuto, "Auto", Nothing, Controls.EControlUse.ThermFanAuto)
         ff.AddButton(Controls.EControlUse.ThermFanOn, "On", Nothing, Controls.EControlUse.ThermFanOn)
+        ff.AddGraphicForValue("images/HomeSeer/status/fan-auto.png", Controls.EControlUse.ThermFanAuto, "Auto")
+        ff.AddGraphicForValue("images/HomeSeer/status/fan-on.png", Controls.EControlUse.ThermFanOn, "On")
 
 
         'Add the feature data to the device data in the device factory
@@ -819,7 +794,9 @@ Public Class HSPI
         ff.AddButton(Controls.EControlUse.Off, "Off", Nothing, Controls.EControlUse.Off)
         ff.AddButton(Controls.EControlUse.On, "On", Nothing, Controls.EControlUse.On)
         ff.AddButton(Controls.EControlUse.OnAlternate, "Tmp", Nothing, Controls.EControlUse.OnAlternate)
-
+        ff.AddGraphicForValue("images/HomeSeer/status/off.gif", Controls.EControlUse.Off, "Off")
+        ff.AddGraphicForValue("images/HomeSeer/status/on.gif", Controls.EControlUse.On, "On")
+        ff.AddGraphicForValue("images/HomeSeer/status/pause.png", Controls.EControlUse.OnAlternate, "Tmp")
 
         'Add the feature data to the device data in the device factory
         df.WithFeature(ff)
@@ -839,23 +816,31 @@ Public Class HSPI
         ff.AddButton(Controls.EControlUse.ThermModeCool, "Cool", Nothing, Controls.EControlUse.ThermModeCool)
         ff.AddButton(Controls.EControlUse.ThermModeHeat, "Heat", Nothing, Controls.EControlUse.ThermModeHeat)
         ff.AddButton(Controls.EControlUse.ThermModeOff, "Off", Nothing, Controls.EControlUse.ThermModeOff)
-
+        ff.AddGraphicForValue("images/HomeSeer/status/auto-mode.png", Controls.EControlUse.ThermModeAuto, "Auto")
+        ff.AddGraphicForValue("images/HomeSeer/status/Cool.png", Controls.EControlUse.ThermModeCool, "Cool")
+        ff.AddGraphicForValue("images/HomeSeer/status/Heat.png", Controls.EControlUse.ThermModeHeat, "Heat")
+        ff.AddGraphicForValue("images/HomeSeer/status/modeoff.png", Controls.EControlUse.ThermModeOff, "Off")
 
         'Add the feature data to the device data in the device factory
         df.WithFeature(ff)
 
         'Put device specific data with the device. (this is the cameradata class)
         Dim PED As New HomeSeer.PluginSdk.Devices.PlugExtraData
-        PED.AddNamed("schedule", Newtonsoft.Json.Linq.JObject.Parse("{""period"":[{""time"":570,""heat"":74,""cool"":78,""fan"":4},{""time"":2047,""heat"":62,""cool"":85,""fan"":4},{""time"":2047,""heat"":70,""cool"":78,""fan"":4},{""time"":1380,""heat"":74,""cool"":78,""fan"":4}]}").ToString())
+        '        PED.AddNamed(DeviceConfigScheduleId, Newtonsoft.Json.Linq.JObject.Parse("{""period"":[{""time"":570,""heat"":74,""cool"":78,""fan"":4},{""time"":2047,""heat"":62,""cool"":85,""fan"":4},{""time"":2047,""heat"":70,""cool"":78,""fan"":4},{""time"":1380,""heat"":74,""cool"":78,""fan"":4}]}").ToString())
+        PED.AddNamed(DeviceConfigScheduleId, "")
         df.WithExtraData(PED)
 
         'this bundles all the needed data from the device to send to HomeSeer.
         dd = df.PrepareForHs
 
         'this creates the device in HomeSeer using the bundled data.
-        HomeSeerSystem.CreateDevice(dd)
+        Dim ddRef As Integer = HomeSeerSystem.CreateDevice(dd)
+        Dim dv As HsDevice = HomeSeerSystem.GetDeviceByRef(ddRef)
+        dv.Image = "images/evcstat/thermostat-sub.png"
+        HomeSeerSystem.UpdateDeviceByRef(dv.Ref, dv.Changes)
         'update the address to device ref cache
         UpdateDeviceReferenceCache()
+
         'check to see if we need to add additional pages now.
         '        LoadAdditionalPages()
     End Sub
@@ -895,8 +880,11 @@ Public Class HSPI
         End Try
 
     End Sub
+#End Region
 
-    Public Sub ProcessDataReceived(ByVal dv As HsDevice, ByVal Data As String)
+#Region "Private Subs/Functions"
+
+    Private Sub ProcessDataReceived(ByVal dv As HsDevice, ByVal Data As String)
         Dim Prop As String
         Dim Value As String
         Dim df As HsFeature
@@ -1064,7 +1052,8 @@ Public Class HSPI
                                 Logger.LogWarning("Error in ProcessDataReceived, Updating Device, {0} Name {1} Ref {2}", ex.Message, df.Name, df.Ref)
                             End Try
                         Case "SCH"
-                            dv.PlugExtraData.Item("schedule") = Newtonsoft.Json.Linq.JObject.Parse(Value)
+                            'SetExtraData(dv.Ref, DeviceConfigScheduleId, Newtonsoft.Json.Linq.JObject.Parse(Value).ToString())
+                            SetExtraData(dv.Ref, DeviceConfigScheduleId, JsonConvert.DeserializeObject(Value).ToString())
                             Try
                                 HomeSeerSystem.UpdateDeviceByRef(dv.Ref, dv.Changes)
                             Catch ex As Exception
@@ -1083,7 +1072,7 @@ Public Class HSPI
 
     End Sub
 
-    Public Sub UpdatePhysicalDevice(ByVal Address As Integer, ByVal ControlTypeSetting As EThermostatControlFeatureSubType, ByVal Value As Integer)
+    Private Sub UpdatePhysicalDevice(ByVal Address As Integer, ByVal ControlTypeSetting As EThermostatControlFeatureSubType, ByVal Value As Integer)
         'This is custom based on the manufacturer
         Dim Command As String = ""
         Try
@@ -1121,6 +1110,7 @@ Public Class HSPI
                     End Select
             End Select
             If Command.Length > 0 Then
+                Logger.LogDebug("Sending command {0} to Address {1} Owner {2}", Command, Address, "O=00 ")
                 _commThread.SendCommand("A=" & Address.ToString & " " & "O=00 " & Command & vbCr)
             End If
 
@@ -1129,6 +1119,38 @@ Public Class HSPI
         End Try
     End Sub
 
+    Private Sub UpdatePhysicalDeviceSchedule(ByVal Address As Integer, ByVal Value As Dictionary(Of String, Dictionary(Of String, Period)))
+        'This is custom based on the manufacturer
+        Dim Command As String = ""
+        Try
+            For Each i In Value
+                For Each d In i.Value
+                    '                   If d.Value.HasChanged Then
+                    Dim p As Period = d.Value
+                    Command = "SCHP=" + "{""Day"":""" + i.Key.ToString() + """,""Period"":""" + d.Key.ToString() + """,""Time"":""" + p.Time.TimeOfDay.ToString("hh\:mm") + """,""Cool"":" + p.Cool.ToString() + ",""Heat"":" + p.Heat.ToString() + ",""Fan"":" + p.Fan.ToString() + "}"
+                    'Command = "SCHP=" + "{" + """i.Key"":" + """d.Key"":" + """Time"":""" + p.Time.TimeOfDay.ToString() + """, ""Cool"":" + p.Cool.ToString() + """Heat"":" + p.Heat.ToString() + ", ""Fan"":" + p.Fan.ToString(") + "}"
+
+                    Logger.LogDebug("Sending command {0} to Address {1} Owner {2}", Command, Address, "O=00 ")
+                        _commThread.SendCommand("A=" & Address.ToString & " " & "O=00 " & Command & vbCr)
+
+                    If LogDebug Then
+                        Console.WriteLine("Day {0} Period {1} Time Of Day {2}", i.Key, d.Key, p.Time.TimeOfDay)
+                        Console.WriteLine("Day {0} Period {1} Cool Set Point {2}", i.Key, d.Key, p.Cool)
+                        Console.WriteLine("Day {0} Period {1} Heat Set Point {2}", i.Key, d.Key, p.Heat)
+                        Console.WriteLine("Day {0} Period {1} Fan Setting {2}", i.Key, d.Key, p.Fan)
+                    End If
+
+                    '                   End If
+                Next
+            Next
+
+            If Command.Length > 0 Then
+            End If
+
+        Catch ex As Exception
+            Logger.LogError("Error in UpdatePhysicalDeviceSchedule, Address {0} Value {1} - {2}", Address, Value, ex.Message.Length)
+        End Try
+    End Sub
     Private Sub UpdateDeviceReferenceCache()
         Dim RefDict As Dictionary(Of Integer, Object)
         RefDict = HomeSeerSystem.GetPropertyByInterface(Id, EProperty.Address, True)

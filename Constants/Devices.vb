@@ -116,4 +116,12 @@ Public Module Devices
     End Property
 
     Public Const DeviceConfigTimeSpanName As String = "Sample Time Span"
+
+    Public ReadOnly Property DeviceConfigScheduleId As String
+        Get
+            Return $"{DeviceConfigPageId}-sampleschedule"
+        End Get
+    End Property
+
+    Public Const DeviceConfigScheduleName As String = "Sample Thermostat Schedule"
 End Module
